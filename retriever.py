@@ -42,9 +42,9 @@ class Retriever():
         availability = statusCodes[200] / n
         
         if self.alert and availability > 0.8:
-            return "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2f}, time={}\033[0m".format(self.URL, availability, str(datetime.now()))
+            return "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(self.URL, availability, str(datetime.now()))
 
         if not(self.alert) and availability < 0.8:
             self.alertNumber += 1
-            return "\n\033[91mWebsite {} is down. Availability={:.2f}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(datetime.now(), self.alertNumber))
+            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(datetime.now()), str(self.alertNumber))
         return ""
