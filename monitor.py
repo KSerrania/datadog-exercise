@@ -9,15 +9,16 @@ class Monitor():
         self.pingStats = []
 
     def get(self):
-        print(self.URL)
         try:
             status = requests.get("http://{}".format(self.URL)).status_code
         except:
             status = 404
 
         try:
-            ping = subprocess.check_output(['ping', '-c', '1', self.URL]).split()
-            pingTime = float(ping[12].decode('utf-8').split('=')[1])
+            pingResult = subprocess.run(['ping', '-c', '1', self.URL], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            pingResult.check_returncode()
+            ping = pingResult.stdout.decode('utf-8').split()
+            pingTime = float(ping[12].split('=')[1])
         except subprocess.CalledProcessError:
             pingTime = None
 
@@ -34,5 +35,4 @@ class Monitor():
                 }
             }
         ]
-        print(data)
         self.influxClient.write_points(data)
