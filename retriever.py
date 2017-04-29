@@ -9,20 +9,25 @@ class Retriever():
         self.alertNumber = 0
 
     def getStats(self, minutes):
-        statusCodes = Counter([elt[1] for elt in self.influxClient.query("SELECT status FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw['series'][0]['values']])
-        latencies = self.influxClient.query("SELECT latency FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw
-        if 'series' in latencies.keys():
-            latencies = [elt[1] for elt in latencies['series'][0]['values'] if elt[1] is not None]
+        data = self.influxClient.query("SELECT latency, status FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw
+        if 'series' in data.keys():
+            statusCodes = Counter([elt[2] if elt[2] is not None else 404 for elt in data['series'][0]['values']])
+            latencies = [elt[1] for elt in data['series'][0]['values'] if elt[1] is not None]
         else:
-            print(latencies)
+            return False, {}
+
         n = sum(statusCodes.values())
         nLatencies = len(latencies)
-        avgLatency = sum(latencies) / nLatencies
-        minLatency = min(latencies)
-        maxLatency = min(latencies)
+        minLatency = min(latencies, default=float('inf'))
+        maxLatency = max(latencies, default=float('inf'))
+        try:
+            avgLatency = sum(latencies) / nLatencies
+        except:
+            avgLatency = float('inf')
+
         pingResponse = nLatencies / n
         availability = statusCodes[200] / n
-        return {
+        return True, {
                 'availability': availability,
                 'statusCodes': statusCodes,
                 'avgLatency': avgLatency,

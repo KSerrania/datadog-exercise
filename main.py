@@ -8,17 +8,19 @@ from monitor import Monitor
 def printResults(retriever, printInterval, minutes):
     resultsPrinting = threading.Timer(printInterval, printResults, args=[retriever, 10, 10]) 
     resultsPrinting.start()
-    stats = retriever.getStats(minutes)   
-    alertStatus = retriever.checkAlert()
-    
-    print('\n\033[94m--- Stats for website ' + retriever.URL + ' ----\033[0m' + \
-            '\nAverage ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['avgLatency']) + \
-            '\nMaximum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['maxLatency']) + \
-            '\nMinimum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['minLatency']) + \
-            '\nPing response over the last {} minutes: {:.2%}'.format(minutes, stats['pingResponse']) + \
-            '\nSite availibility over the last {} minutes: {:.2%}'.format(minutes, stats['availability']) + \
-            alertStatus)
-    return 0;
+    availableStats, stats = retriever.getStats(minutes)
+    if availableStats:
+        alertStatus = retriever.checkAlert()
+        print('\n\033[94m--- Stats for website ' + retriever.URL + ' ----\033[0m' + \
+                '\nAverage ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['avgLatency']) + \
+                '\nMaximum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['maxLatency']) + \
+                '\nMinimum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['minLatency']) + \
+                '\nPing response over the last {} minutes: {:.2%}'.format(minutes, stats['pingResponse']) + \
+                '\nSite availibility over the last {} minutes: {:.2%}'.format(minutes, stats['availability']) + \
+                alertStatus)
+        return 0;
+    else:
+        print('\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m')
 
 def getResults(monitor, checkInterval):
     periodicCheck = threading.Timer(checkInterval, getResults, args=[monitor, checkInterval])
