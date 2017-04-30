@@ -23,7 +23,7 @@ class Monitor():
         self.influxClient = influxClient
 
     def get(self):
-        """Gets data about the monitored website and stores it into the InfluxDB database
+        """Gets data about the monitored website and stores it into the InfluxDB database.
 
         """
         try:
