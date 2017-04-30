@@ -21,7 +21,6 @@ class Monitor():
         """
         self.URL = URL
         self.influxClient = influxClient
-        self.pingStats = []
 
     def get(self):
         """Gets data about the monitored website and stores it into the InfluxDB database
