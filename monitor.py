@@ -3,12 +3,30 @@ import subprocess
 from datetime import datetime
 
 class Monitor():
+    """Monitor class whose goal is to check the monitored website's availability and performance.
+
+    Attributes:
+        URL (str): URL of the monitored website.
+        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+
+    """
+
     def __init__(self, URL, influxClient):
+        """Sets the URL and influxDBClient as speficied in the parameters.
+
+        Args:
+            URL (str): URL of the monitored website.
+            influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+
+        """
         self.URL = URL
         self.influxClient = influxClient
         self.pingStats = []
 
     def get(self):
+        """Gets data about the monitored website and stores it into the InfluxDB database
+
+        """
         try:
             status = requests.get("http://{}".format(self.URL)).status_code
         except:
