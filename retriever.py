@@ -84,7 +84,8 @@ class Retriever():
 
         pingResponse = nLatencies / n
         # We define here the availability as the percentage of status 200 (OK) responses
-        availability = statusCodes[200] / n
+        nAvailability = sum({ key: value for key, value in statusCodes.items() if key < 400}.values())
+        availability = nAvailability / n
 
         # And we return these stats in a dictionary
         return True, {
