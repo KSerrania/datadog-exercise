@@ -5,8 +5,11 @@ class Retriever():
     def __init__(self, URL, influxClient):
         self.URL = URL
         self.influxClient = influxClient
-        self.alert = False
-        self.alertNumber = 0
+        self.alertData = {
+            'alertStatus': False,
+            'alertNumber': 0,
+            'alertTime': datetime.now()
+        }
 
     def getStats(self, minutes):
         data = self.influxClient.query("SELECT latency, status FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw
@@ -41,10 +44,14 @@ class Retriever():
         n = sum(statusCodes.values())
         availability = statusCodes[200] / n
         
-        if self.alert and availability > 0.8:
+        if self.alertData['alertStatus'] and availability >= 0.8:
+            self.alertData['alertStatus']  = False
             return "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(self.URL, availability, str(datetime.now()))
-
-        if not(self.alert) and availability < 0.8:
-            self.alertNumber += 1
-            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(datetime.now()), str(self.alertNumber))
+        elif self.alertData['alertStatus']:
+            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(self.alertData['alertTime']), str(self.alertData['alertNumber']))
+        if not(self.alertData['alertStatus']) and availability < 0.8:
+            self.alertData['alertNumber'] += 1
+            self.alertData['alertStatus']  = True
+            self.alertData['alertTime']  = datetime.now()
+            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(self.alertData['alertTime']), str(self.alertData['alertNumber']))
         return ""
