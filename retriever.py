@@ -69,7 +69,7 @@ class Retriever():
             responseTimes = [elt[3] for elt in data['series'][0]['values'] if elt[3] is not None]
 
             # And we create a counter of status codes
-            statusCodes = Counter([elt[2] for elt in data['series'][0]['values'] if elt[2] is not None])
+            statusCodes = Counter([elt[2] for elt in data['series'][0]['values']])
         else:
             # If there is no data available
             return False, {}
@@ -111,19 +111,48 @@ class Retriever():
         n = sum(availables.values())
         # We compute the site's availability
         availability = availables[True] / n
-        
+        currentDate = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
         if self.alertData['alertStatus'] and availability >= 0.8:
             # If the website was in alert status but has recovered, we send a recovery signal
-            self.alertData['alertStatus']  = False
-            return "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(self.URL, availability, str(datetime.now()))
+            data = [
+                {
+                    "measurement": "website_alerts",
+                    "tags": {
+                        "host": self.URL 
+                    },
+                    "time": currentDate,
+                    "fields": {
+                        "type": "recovery",
+                        "availability": availability,
+                    }
+                }
+            ]
+            self.alertData['alertStatus'] = False
+            self.influxClient.write_points(data)
+            return "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(self.URL, str(self.alertData['alertNumber']), availability, str(datetime.now()))
         elif self.alertData['alertStatus']:
             # If the website was in alert status and still is, we send a down signal
             return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(self.alertData['alertTime']), str(self.alertData['alertNumber']))
         if not(self.alertData['alertStatus']) and availability < 0.8:
             # If the website is now down, we update the alert values and then we send a down signal
-            self.alertData['alertNumber'] += 1
+            data = [
+                {
+                    "measurement": "website_alerts",
+                    "tags": {
+                        "host": self.URL
+                    },
+                    "time": currentDate,
+                    "fields": {
+                        "type": "alert",
+                        "availability": availability,
+                    }
+                }
+            ]
             self.alertData['alertStatus'] = True
-            self.alertData['alertTime'] = datetime.now()
-            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, str(self.alertData['alertTime']), str(self.alertData['alertNumber']))
+            self.alertData['alertNumber'] += 1
+            self.alertData['alertTime'] = currentDate
+            self.influxClient.write_points(data)
+            return "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(self.URL, availability, self.alertData['alertTime'], str(self.alertData['alertNumber']))
         # If there's no problem, we send nothing
         return ""
