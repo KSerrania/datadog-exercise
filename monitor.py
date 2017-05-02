@@ -24,7 +24,10 @@ class Monitor():
     def __availabilityCheck(self):
         try:
             response = requests.get("http://{}".format(self.URL))
-            return True, response
+            if response.status_code < 500:
+                return True, response
+            else:
+                return False, response
         except requests.Timeout as e:
             print('The request at {} timed out'.format(self.URL))
             return False, None
@@ -43,9 +46,9 @@ class Monitor():
         """Gets data about the monitored website and stores it into the InfluxDB database.
 
         """
-        currentDate = str(datetime.now())
+        currentDate = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
         available, response = self.__availabilityCheck()
-        if available:
+        if response is not None:
             responseTime = response.elapsed.total_seconds() * 1000
             status = response.status_code
         else:
