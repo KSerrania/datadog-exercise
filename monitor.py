@@ -58,7 +58,7 @@ class Monitor():
             {
                 "measurement": "website_availability",
                 "tags": {
-                    "host": self.URL    
+                    "host": self.URL
                 },
                 "time": currentDate,
                 "fields": {

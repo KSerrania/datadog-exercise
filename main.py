@@ -59,14 +59,12 @@ def main(*websites, **kwargs):
         monitors[website] = (Monitor(website, influxClient), checkInterval)
         retrievers[website] = Retriever(website, influxClient)
 
-    resultsPrinting10s = threading.Timer(10, printResults, args=[retrievers, 10, 10])
-    resultsPrinting10s.start()
-    resultsPrinting1m = threading.Timer(60, printResults, args=[retrievers, 60, 60])
-    resultsPrinting1m.start()
+    resultsPrinting = threading.Timer(10, printResults, args=[retrievers, 10, 6])
+    resultsPrinting.start()
 
     for (monitor, checkI) in monitors.values():
         periodicCheck = threading.Timer(checkI, getResults, args=[monitor, checkI])
         periodicCheck.start()
 
 if __name__ == "__main__":
-    main('via.ecp.fr', 'my.ecp.fr', 'google.com', 'aefef.co', checkInterval=2)
+    main('via.ecp.fr', 'my.ecp.fr', 'amazon.fr', 'localhost:4000', checkInterval=2)
