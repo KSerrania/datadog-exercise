@@ -45,15 +45,14 @@ class Retriever():
                 - a dictionary containing interesting stats about the website for the specified timespan:
                     availability (float): The availability of the website.
                     statusCodes (collections.Counter): The counts of the different response codes from requests on the website.
-                    avgLatency (float): The average ping response time.
-                    minLatency (float): The minimum ping response time.
-                    maxLatency (float): The maximum ping response time.
-                    pingResponse (float): The percentage of ping requests which have been answered.
-
+                    avgRT (float): The average response time.
+                    minRT (float): The minimum response time.
+                    maxRT (float): The maximum response time.
+  
         """
 
         # We first query the database
-        data = self.influxClient.query("SELECT latency, status FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw
+        data = self.influxClient.query("SELECT available, status, responseTime FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)).raw
         # The raw data from the query is a dictionary object.
         # The interesting data (for us) is associated to the series key 
         if 'series' in data.keys():
@@ -62,39 +61,39 @@ class Retriever():
             # This element (data['series'][0] contains another dictionary
             # In the 'values' key of this dictionary, we can find an array whose first element is the time
             # and whose following elements are the elements we requested, in the order they were requested
+
+            # We create a counter of number of times the site was available or not
+            availables = Counter([elt[1] for elt in data['series'][0]['values'] if elt[1] is not None])
             
             # We create an array containing all the (not None) latencies
-            latencies = [elt[1] for elt in data['series'][0]['values'] if elt[1] is not None]
+            responseTimes = [elt[3] for elt in data['series'][0]['values'] if elt[3] is not None]
 
             # And we create a counter of status codes
-            statusCodes = Counter([elt[2] if elt[2] is not None else 404 for elt in data['series'][0]['values']])
+            statusCodes = Counter([elt[2] for elt in data['series'][0]['values'] if elt[2] is not None])
         else:
             # If there is no data available
             return False, {}
 
         # We then compute some interesting statistics
-        n = sum(statusCodes.values())
-        nLatencies = len(latencies)
-        minLatency = min(latencies, default=float('inf'))
-        maxLatency = max(latencies, default=float('inf'))
+        nRT= len(responseTimes)
+        minRT = min(responseTimes, default=float('inf'))
+        maxRT = max(responseTimes, default=float('inf'))
         try:
-            avgLatency = sum(latencies) / nLatencies
+            avgRT = sum(responseTimes) / nRT
         except:
-            avgLatency = float('inf')
+            avgRT = float('inf')
 
-        pingResponse = nLatencies / n
-        # We define here the availability as the percentage of status 200 (OK) responses
-        nAvailability = sum({ key: value for key, value in statusCodes.items() if key < 400}.values())
-        availability = nAvailability / n
+        # We define here the availability
+        n = sum(availables.values())
+        availability = availables[True] / n
 
         # And we return these stats in a dictionary
         return True, {
                 'availability': availability,
                 'statusCodes': statusCodes,
-                'avgLatency': avgLatency,
-                'minLatency': minLatency,
-                'maxLatency': maxLatency,
-                'pingResponse': pingResponse
+                'avgRT': avgRT,
+                'minRT': minRT,
+                'maxRT': maxRT,
                 }
     
     def checkAlert(self):
@@ -108,10 +107,10 @@ class Retriever():
         #TODO: Change output to data dictionary
         
         # We first retrieve the website's data on the last 2 minutes
-        statusCodes = Counter([elt[1] for elt in self.influxClient.query("SELECT status FROM website_availability WHERE time > now() - 2m AND host = '{}'".format(self.URL)).raw['series'][0]['values']])
-        n = sum(statusCodes.values())
+        availables = Counter([elt[1] for elt in self.influxClient.query("SELECT available FROM website_availability WHERE time > now() - 2m AND host = '{}'".format(self.URL)).raw['series'][0]['values']])
+        n = sum(availables.values())
         # We compute the site's availability
-        availability = statusCodes[200] / n
+        availability = availables[True] / n
         
         if self.alertData['alertStatus'] and availability >= 0.8:
             # If the website was in alert status but has recovered, we send a recovery signal

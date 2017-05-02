@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import threading
 from datetime import datetime
@@ -13,11 +14,10 @@ def printResults(retrievers, printInterval, minutes):
         availableStats, stats = retriever.getStats(minutes)
         if availableStats:
             alertStatus = retriever.checkAlert()
-            totalString += '\n\033[94m--- Stats for website ' + retriever.URL + ' ----\033[0m' + \
-                    '\nAverage ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['avgLatency']) + \
-                    '\nMaximum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['maxLatency']) + \
-                    '\nMinimum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['minLatency']) + \
-                    '\nPing response over the last {} minutes: {:.2%}'.format(minutes, stats['pingResponse']) + \
+            totalString += '\n\033[94m---- Stats for website ' + retriever.URL + ' ----\033[0m' + \
+                    '\nAverage ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['avgRT']) + \
+                    '\nMaximum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['maxRT']) + \
+                    '\nMinimum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['minRT']) + \
                     '\nSite availibility over the last {} minutes: {:.2%}'.format(minutes, stats['availability']) + \
                     alertStatus + '\n'
         else:
@@ -50,3 +50,5 @@ def main(*websites, **kwargs):
         periodicCheck = threading.Timer(checkI, getResults, args=[monitor, checkI])
         periodicCheck.start()
 
+if __name__ == "__main__":
+    main('via.ecp.fr', 'my.ecp.fr', 'google.com', 'aefef.co', checkInterval=2)

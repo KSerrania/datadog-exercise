@@ -1,6 +1,5 @@
 import requests
-import subprocess
-from datetime import datetime
+from datetime import timedelta, datetime
 
 class Monitor():
     """Monitor class whose goal is to check the monitored website's availability and performance.
@@ -21,34 +20,48 @@ class Monitor():
         """
         self.URL = URL
         self.influxClient = influxClient
+        
+    def __availabilityCheck(self):
+        try:
+            response = requests.get("http://{}".format(self.URL))
+            return True, response
+        except requests.Timeout as e:
+            print('The request at {} timed out'.format(self.URL))
+            return False, None
+        except requests.ConnectionError as e:
+            print('Error while connecting to {}'.format(self.URL))
+            return False, None
+        except requests.InvalidURL as e:
+            print('Invalid URL for site {}'.format(self.URL))
+            return False, None
+        except Exception as e:
+            print('There was an error while connecting to {}'.format(self.URL))
+            return False, None
+
 
     def get(self):
         """Gets data about the monitored website and stores it into the InfluxDB database.
 
         """
-        try:
-            status = requests.get("http://{}".format(self.URL)).status_code
-        except:
-            status = 404
-
-        try:
-            pingResult = subprocess.run(['ping', '-c', '1', self.URL], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            pingResult.check_returncode()
-            ping = pingResult.stdout.decode('utf-8').split()
-            pingTime = float(ping[12].split('=')[1])
-        except subprocess.CalledProcessError:
-            pingTime = None
-
+        currentDate = str(datetime.now())
+        available, response = self.__availabilityCheck()
+        if available:
+            responseTime = response.elapsed.total_seconds() * 1000
+            status = response.status_code
+        else:
+            responseTime = None
+            status = None
         data = [
             {
                 "measurement": "website_availability",
                 "tags": {
                     "host": self.URL    
                 },
-                "time": str(datetime.now()),
+                "time": currentDate,
                 "fields": {
+                    "available": available,
                     "status": status,
-                    "latency": pingTime
+                    "responseTime": responseTime
                 }
             }
         ]
