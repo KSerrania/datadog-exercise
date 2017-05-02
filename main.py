@@ -6,20 +6,38 @@ from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
 
-def printResults(retrievers, printInterval, minutes):
-    resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, minutes])
+def printResults(retrievers, printInterval, countdownToNextMinute):
+    if countdownToNextMinute == 0:
+        resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, 6])
+        printMinuteCheck = True
+    else:
+        countdownToNextMinute -= 1
+        printMinuteCheck = False
+        resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, countdownToNextMinute])
     resultsPrinting.start()
     totalString = str(datetime.now())
     for website, retriever in retrievers.items():
-        availableStats, stats = retriever.getStats(minutes)
+        availableStats, stats = retriever.getStats(10)
+        if printMinuteCheck:
+            availableStats1m, stats1m = retriever.getStats(60)
         if availableStats:
             alertStatus = retriever.checkAlert()
-            totalString += '\n\033[94m---- Stats for website ' + retriever.URL + ' ----\033[0m' + \
-                    '\nAverage ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['avgRT']) + \
-                    '\nMaximum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['maxRT']) + \
-                    '\nMinimum ping latency over the last {} minutes: {:.2f} ms'.format(minutes, stats['minRT']) + \
-                    '\nSite availibility over the last {} minutes: {:.2%}'.format(minutes, stats['availability']) + \
-                    alertStatus + '\n'
+            totalString += '\n\n\033[94;1m---- Stats for website ' + retriever.URL + ' ----\033[0m' + \
+                    '\n\033[4;93mFor the last 10 minutes:\033[0m' + \
+                    '\n\tAverage response time: {:.2f} ms'.format(stats['avgRT']) + \
+                    '\n\tMaximum response time: {:.2f} ms'.format(stats['maxRT']) + \
+                    '\n\tMinimum response time: {:.2f} ms'.format(stats['minRT']) + \
+                    '\n\tResponse counts: {}'.format(stats['statusCodes']) + \
+                    '\n\tSite availibility: {:.2%}'.format(stats['availability'])
+            if printMinuteCheck and availableStats1m:
+                totalString += '\n\033[4;93mFor the last hour:\033[0m' + \
+                    '\n\tAverage response time: {:.2f} ms'.format(stats1m['avgRT']) + \
+                    '\n\tMaximum response time: {:.2f} ms'.format(stats1m['maxRT']) + \
+                    '\n\tMinimum response time: {:.2f} ms'.format(stats1m['minRT']) + \
+                    '\n\tResponse counts: {}'.format(stats1m['statusCodes']) + \
+                    '\n\tSite availibility: {:.2%}'.format(stats1m['availability'])
+            totalString += alertStatus
+
         else:
             totalString += '\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m\n'
     print(totalString)
