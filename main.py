@@ -40,8 +40,10 @@ def printResults(retrievers, printInterval, countdownToNextMinute):
                     '\n\tMinimum response time: {:.2f} ms'.format(stats1m['minRT']) + \
                     '\n\tResponse counts: {}'.format(stats1m['statusCodes']) + \
                     '\n\tSite availibility: {:.2%}'.format(stats1m['availability'])
-            totalString += alertStatus
-
+            if alertStatus['type'] == 'alert':
+                totalString += "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(alertStatus['URL'], alertStatus['availability'], formatTime(alertStatus['alertTime']), alertStatus['alertNumber'])
+            elif alertStatus['type'] == 'recovery':
+                totalString += "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(alertStatus['URL'], alertStatus['alertNumber'], alertStatus['availability'], formatTime(alertStatus['alertTime']))
         else:
             totalString += '\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m\n'
     print(totalString)
