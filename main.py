@@ -7,6 +7,9 @@ from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
 
+def formatTime(time):
+    return time.strftime("%a, %d/%m/%Y %H:%M:%S")
+
 def printResults(retrievers, printInterval, countdownToNextMinute):
     if countdownToNextMinute == 0:
         resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, 6])
@@ -16,7 +19,7 @@ def printResults(retrievers, printInterval, countdownToNextMinute):
         printMinuteCheck = False
         resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, countdownToNextMinute])
     resultsPrinting.start()
-    totalString = str(datetime.now())
+    totalString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.utcnow()) + ' ####\033[0m'
     for website, retriever in retrievers.items():
         availableStats, stats = retriever.getStats(10)
         if printMinuteCheck:
