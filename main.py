@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import threading
+import json
 from datetime import datetime
 from influxdb import InfluxDBClient
 from retriever import Retriever
@@ -49,13 +50,12 @@ def getResults(monitor, checkInterval):
     monitor.get()
     return 0;
 
-def main(*websites, **kwargs):
+def main(websites):
     influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'example')
     influxClient.create_database('example')
-    checkInterval = kwargs['checkInterval']
     monitors = {}
     retrievers = {}
-    for website in websites:
+    for website, checkInterval in websites.items():
         monitors[website] = (Monitor(website, influxClient), checkInterval)
         retrievers[website] = Retriever(website, influxClient)
 
@@ -66,5 +66,14 @@ def main(*websites, **kwargs):
         periodicCheck = threading.Timer(checkI, getResults, args=[monitor, checkI])
         periodicCheck.start()
 
+def loadJSONConfig(fileName):
+    try:
+        file = open("config.json")
+        return json.loads(file.read())
+    except FileNotFoundError:
+        print("Configuration file not found")
+                    
 if __name__ == "__main__":
-    main('via.ecp.fr', 'my.ecp.fr', 'amazon.fr', 'localhost:4000', checkInterval=2)
+    websites = loadJSONConfig("./config.json")
+    print(websites)
+    main(websites)
