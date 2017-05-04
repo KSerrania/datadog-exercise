@@ -141,7 +141,8 @@ class Retriever():
                 "type": 'recovery',
                 "URL": self.URL,
                 "availability": availability,
-                "alertTime": currentDate,
+                "startDate": self.alertData['alertTime'],
+                "endDate": currentDate,
                 "alertNumber": str(self.alertData['alertNumber'])
             }
 
@@ -151,7 +152,7 @@ class Retriever():
                 "type": 'alert',
                 "URL": self.URL,
                 "availability": availability,
-                "alertTime": self.alertData['alertTime'],
+                "startDate": self.alertData['alertTime'],
                 "alertNumber": str(self.alertData['alertNumber'])
             }
         if not(self.alertData['alertStatus']) and availability < 0.8:
@@ -179,7 +180,7 @@ class Retriever():
                 "type": 'alert',
                 "URL": self.URL,
                 "availability": availability,
-                "alertTime": self.alertData['alertTime'],
+                "startDate": self.alertData['alertTime'],
                 "alertNumber": str(self.alertData['alertNumber'])
             }
         # If there's no problem, we only send that type is None
