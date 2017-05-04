@@ -1,7 +1,12 @@
 {
-  "google.com": 2,
-  "amazon.fr": 3,
-  "via.ecp.fr": 4,
-  "my.ecp.fr": 1,
-  "localhost:4000": 2
+  "websites": [
+  {
+    "URL": "http://google.com",
+    "checkInterval": 3.5
+  },
+  {
+    "URL":"http://localhost:4000"
+  }
+  ],
+  "defaultCheckInterval": 3
 }
