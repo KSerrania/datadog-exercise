@@ -21,8 +21,9 @@ class AlertWatcher():
             influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
 
         """
-        influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'example')
-        influxClient.create_database('example') 
+        influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'monitoring')
+        influxClient.create_database('monitoring')
+
         # We set the influxClient and launch the initial data check
         self.influxClient = influxClient
         self.__check()

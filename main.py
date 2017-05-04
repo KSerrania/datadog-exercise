@@ -6,78 +6,129 @@ from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
 from datetime import datetime
-from utils import formatTime
+from utils import formatTime, formatStats, formatAlert
 
+class App():
+    """Main class of the application. Handles configuration retrieval, checks the app mode
+    (main, alert watching and test) and launches the relevant functions.
 
-def printResults(retrievers, printInterval, countdownToNextMinute):
-    if countdownToNextMinute == 0:
-        resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, 6])
-        printMinuteCheck = True
-    else:
-        countdownToNextMinute -= 1
-        printMinuteCheck = False
-        resultsPrinting = threading.Timer(printInterval, printResults, args=[retrievers, printInterval, countdownToNextMinute])
-    resultsPrinting.start()
-    totalString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.utcnow()) + ' ####\033[0m'
-    for website, retriever in retrievers.items():
-        availableStats, stats = retriever.getStats(10)
-        if printMinuteCheck:
-            availableStats1m, stats1m = retriever.getStats(60)
-        if availableStats:
-            alertStatus = retriever.checkAlert()
-            totalString += '\n\n\033[94;1m---- Stats for website ' + retriever.URL + ' ----\033[0m' + \
-                    '\n\033[4;93mFor the last 10 minutes:\033[0m' + \
-                    '\n\tAverage response time: {:.2f} ms'.format(stats['avgRT']) + \
-                    '\n\tMaximum response time: {:.2f} ms'.format(stats['maxRT']) + \
-                    '\n\tMinimum response time: {:.2f} ms'.format(stats['minRT']) + \
-                    '\n\tResponse counts: {}'.format(stats['statusCodes']) + \
-                    '\n\tSite availibility: {:.2%}'.format(stats['availability'])
-            if printMinuteCheck and availableStats1m:
-                totalString += '\n\033[4;93mFor the last hour:\033[0m' + \
-                    '\n\tAverage response time: {:.2f} ms'.format(stats1m['avgRT']) + \
-                    '\n\tMaximum response time: {:.2f} ms'.format(stats1m['maxRT']) + \
-                    '\n\tMinimum response time: {:.2f} ms'.format(stats1m['minRT']) + \
-                    '\n\tResponse counts: {}'.format(stats1m['statusCodes']) + \
-                    '\n\tSite availibility: {:.2%}'.format(stats1m['availability'])
-            if alertStatus['type'] == 'alert':
-                totalString += "\n\033[91mWebsite {} is down. Availability={:.2%}, time={}. (Alert {})\033[0m".format(alertStatus['URL'], alertStatus['availability'], formatTime(alertStatus['alertTime']), alertStatus['alertNumber'])
-            elif alertStatus['type'] == 'recovery':
-                totalString += "\n\033[92mWebsite {} recovered from alert {}. Availability={:.2%}, time={}\033[0m".format(alertStatus['URL'], alertStatus['alertNumber'], alertStatus['availability'], formatTime(alertStatus['alertTime']))
-        else:
-            totalString += '\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m\n'
-    print(totalString)
-    return 0;
+    Attributes:
+        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+        monitors (dict of str:(Monitor, int)): Stores the monitor and check interval for each website
+        retrievers (dict of str:Retriever): Stores the data retriever for each website
 
-def getResults(monitor, checkInterval):
-    periodicCheck = threading.Timer(checkInterval, getResults, args=[monitor, checkInterval])
-    periodicCheck.start()
-    monitor.get()
-    return 0;
+    """
+    def __init__(self):
+        """Initializes the influxDBClient, as well as the monitors ans retrievers dictionaries.
+        Also launches the first check which retrieves the whole alert history up to now.
 
-def main(websites):
-    influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'example')
-    influxClient.create_database('example')
-    monitors = {}
-    retrievers = {}
-    for website, checkInterval in websites.items():
-        monitors[website] = (Monitor(website, influxClient), checkInterval)
-        retrievers[website] = Retriever(website, influxClient)
+        Args:
+            influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
 
-    resultsPrinting = threading.Timer(10, printResults, args=[retrievers, 10, 6])
-    resultsPrinting.start()
+        """
+        self.influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'monitoring')
+        self.influxClient.create_database('monitoring')
+        self.monitors = {}
+        self.retrievers = {}
 
-    for (monitor, checkI) in monitors.values():
-        periodicCheck = threading.Timer(checkI, getResults, args=[monitor, checkI])
+    def __loadJSONConfig(self, fileName):
+        """Tries to load the configuration file provided in argument.
+        The configuration file must have the following format:
+        {
+            "websites": [
+                {
+                    "URL": <urlOfWebsite1 (str)>,
+                    "checkInterval": <checkIntervalOfWebsite1 (int/float)>
+                },
+                {
+                    "URL": <urlOfWebsite2 (str)>
+                }
+                ...
+            ],
+            "defaultCheckInterval": <defaultCheckInterval (intfloat)>
+        }
+        The check intervals are expressed in seconds.
+
+        Args:
+            fileName (str): Path to the configuration file
+
+        Returns:
+            A dictionary (str: int/float) containing website / checkInterval key-value pairs
+        """
+        res = {}
+
+        try:
+            file = open(fileName)
+            loadedJSON = json.loads(file.read())
+            defaultCheckInterval = loadedJSON.get("defaultCheckInterval", 2)
+            try:
+                websites = loadedJSON["websites"]
+            except:
+                print("No websites found in the configuration file")
+                websites = []
+            for website in websites:
+                try:
+                    res[website['URL']] = website.get("checkInterval", defaultCheckInterval)
+                except:
+                    print("Error during configuration of website")
+            return res
+        except FileNotFoundError:
+            print("Configuration file not found")
+        except Exception as e:
+            print("Error while loading file: {}".format(e))
+
+    def __getResults(self, monitor, checkInterval):
+        periodicCheck = threading.Timer(checkInterval, self.__getResults, args=[monitor, checkInterval])
         periodicCheck.start()
+        monitor.get()
+        return 0;
 
-def loadJSONConfig(fileName):
-    try:
-        file = open("config.json")
-        return json.loads(file.read())
-    except FileNotFoundError:
-        print("Configuration file not found")
+    def __printResults(self, retrievers, printInterval, countdownToNextMinute):
+        if countdownToNextMinute == 0:
+            resultsPrinting = threading.Timer(printInterval, self.__printResults, args=[retrievers, printInterval, 5])
+            printMinuteCheck = True
+        else:
+            countdownToNextMinute -= 1
+            printMinuteCheck = False
+            resultsPrinting = threading.Timer(printInterval, self.__printResults, args=[retrievers, printInterval, countdownToNextMinute])
+        resultsPrinting.start()
+
+        os.system('clear')
+
+        resString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.utcnow()) + ' ####\033[0m'
+        for website, retriever in retrievers.items():
+            alertStatus = retriever.checkAlert()
+            availableStats2m, stats2m = retriever.getStats(2)
+            availableStats10m, stats10m = retriever.getStats(10)
+            if printMinuteCheck:
+                availableStats1h, stats1h = retriever.getStats(60)
+            if availableStats2m:
+                resString += '\n\n\033[94;1m---- Stats for website ' + retriever.URL + ' ----\033[0m'
+                resString += formatStats(2, stats2m)
+                resString += formatStats(10, stats10m)
+                if printMinuteCheck and availableStats1h:
+                    resString += formatStats(60, stats1h)
+                resString += formatAlert(alertStatus)
+            else:
+                resString += '\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m\n'
+        print(resString)
+        return 0;
+
                     
+    def run(self, configFile="config.json"):
+        websites = self.__loadJSONConfig(configFile)
+
+        for website, checkInterval in websites.items():
+            self.monitors[website] = (Monitor(website, self.influxClient), checkInterval)
+            self.retrievers[website] = Retriever(website, self.influxClient)
+
+        resultsPrinting = threading.Timer(10, self.__printResults, args=[self.retrievers, 10, 5])
+        resultsPrinting.start()
+
+        for (monitor, checkI) in self.monitors.values():
+            periodicCheck = threading.Timer(checkI, self.__getResults, args=[monitor, checkI])
+            periodicCheck.start()
+
 if __name__ == "__main__":
-    websites = loadJSONConfig("./config.json")
-    print(websites)
-    main(websites)
+    app = App()
+    app.run()
