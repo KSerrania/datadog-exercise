@@ -2,7 +2,7 @@ import requests
 from datetime import timedelta, datetime
 
 class Monitor():
-    """Monitor class whose goal is to check the monitored website's availability and performance.
+    """Class whose goal is to check the monitored website's availability and performance.
 
     Attributes:
         URL (str): URL of the monitored website.
@@ -22,8 +22,21 @@ class Monitor():
         self.influxClient = influxClient
         
     def __availabilityCheck(self):
+        """Checks if the monitored website is available by sending it a GET request.
+        We define that a site is available if it responds to the GET request with a status which
+        doesn't start with 5.
+
+        Returns:
+            A tuple containing:
+                - a boolean (False if the site is not available, True if it is)
+                - a requests.Response object containing data about the requests, or None if the website
+                  didn't answer the request
+        """
+        #TODO: Notify the user about 400 errors
+
         try:
-            response = requests.get("http://{}".format(self.URL))
+            # We send a request to the website
+            response = requests.get(self.URL)
             if response.status_code < 500:
                 return True, response
             else:
