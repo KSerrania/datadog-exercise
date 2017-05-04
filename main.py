@@ -2,9 +2,11 @@
 import os
 import threading
 import json
+import test
 from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
+from alertWatcher import AlertWatcher
 from datetime import datetime
 from utils import formatTime, formatStats, formatAlert
 
@@ -18,16 +20,15 @@ class App():
         retrievers (dict of str:Retriever): Stores the data retriever for each website
 
     """
-    def __init__(self):
+    def __init__(self, database):
         """Initializes the influxDBClient, as well as the monitors ans retrievers dictionaries.
         Also launches the first check which retrieves the whole alert history up to now.
 
         Args:
-            influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
-
+            database (str): The database name
         """
-        self.influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'monitoring')
-        self.influxClient.create_database('monitoring')
+        self.influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', database)
+        self.influxClient.create_database(database)
         self.monitors = {}
         self.retrievers = {}
 
@@ -118,9 +119,9 @@ class App():
     def run(self, configFile="config.json"):
         websites = self.__loadJSONConfig(configFile)
 
-        for website, checkInterval in websites.items():
-            self.monitors[website] = (Monitor(website, self.influxClient), checkInterval)
-            self.retrievers[website] = Retriever(website, self.influxClient)
+        for websiteURL, checkInterval in websites.items():
+            self.monitors[websiteURL] = Monitor(websiteURL, self.influxClient), checkInterval
+            self.retrievers[websiteURL] = Retriever(websiteURL, self.influxClient)
 
         resultsPrinting = threading.Timer(10, self.__printResults, args=[self.retrievers, 10, 5])
         resultsPrinting.start()
@@ -129,6 +130,21 @@ class App():
             periodicCheck = threading.Timer(checkI, self.__getResults, args=[monitor, checkI])
             periodicCheck.start()
 
+    def runTest(self):
+        monitor = Monitor("http://localhost:7000", self.influxClient)
+        retriever = Retriever("http://localhost:7000", self.influxClient)
+        self.influxClient.drop_database('test')
+        self.influxClient.create_database('test')
+        periodicCheck = threading.Timer(2, self.__getResults, args=[monitor, 2])
+        periodicCheck.start()
+
+        test.testServer(retriever)
+
+        return 0;
+
+    def runAlert(self):
+        alertWatcher = AlertWatcher(self.influxClient)
+
 if __name__ == "__main__":
-    app = App()
-    app.run()
+    app = App('test')
+    app.runTest()
