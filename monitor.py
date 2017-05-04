@@ -37,7 +37,7 @@ class Monitor():
         try:
             # We send a request to the website
             response = requests.get(self.URL)
-            if response.status_code < 500:
+            if response.status_code < 400:
                 return True, response
             else:
                 return False, response

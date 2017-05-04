@@ -24,7 +24,7 @@ def printCounter(counter):
     formattedCounts = []
     for value, count in counter.most_common():
         formattedStat = ""
-        if value is not None and value < 500:
+        if value is not None and value < 400:
             formattedStat += "\033[92m"
         else:
             formattedStat+= "\033[91m"
