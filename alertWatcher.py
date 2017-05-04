@@ -33,8 +33,8 @@ class AlertWatcher():
 
         Args:
             lineData (dict): Data about the alert or recovery.
-                type (string): Type of notification.
-                URL (string): URL of the website the notification is about. 
+                type (str): Type of notification.
+                URL (str): URL of the website the notification is about.
                 availability (float): Website availability at the time of the notification.
                 time (datetime.datetime): Time of the notification.
         """
