@@ -2,13 +2,12 @@
 import os
 import threading
 import json
-from datetime import datetime
 from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
+from datetime import datetime
+from utils import formatTime
 
-def formatTime(time):
-    return time.strftime("%a, %d/%m/%Y %H:%M:%S")
 
 def printResults(retrievers, printInterval, countdownToNextMinute):
     if countdownToNextMinute == 0:

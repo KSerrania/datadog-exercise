@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from datetime import datetime
 from influxdb import InfluxDBClient
-from main import formatTime
+from utils import formatTime
 import threading
 
 
