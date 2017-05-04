@@ -15,7 +15,7 @@ class AlertWatcher():
     """
     def __init__(self):
         """Sets the influxDBClient as speficied in the parameters.
-        Also launches the first check which retrieves the whole alert history.
+        Also launches the first check which retrieves the whole alert history up to now.
 
         Args:
             influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
@@ -86,23 +86,21 @@ class AlertWatcher():
             # If a startDate was given (typically, after the first check), we only query about notifications after this date.
             # The data needs to be in the following format, as absolute dates in InfluxDB queries must follow RFC3339_like_date_time 
             # or RFC3339_date_time
-            formattedDate = startDate.strftime("%Y-%m-%d %H:%M:%S.000000000")
-            data = self.influxClient.query("SELECT host, type, availability FROM website_alerts WHERE time >= '{}'".format(formattedDate)).raw            
+            data = self.influxClient.query("SELECT host, type, availability FROM website_alerts WHERE time > '{}'".format(startDate)).raw            
         else:
             # We query the database about all the notifications
             data = self.influxClient.query("SELECT host, type, availability FROM website_alerts").raw
         
-        # We get the current time (which will be the start date for the next iteration
-        # This method has one drawback: there may be alerts during the small timeframe between the query and
-        # the currentDate definition during which alerts may happen and not be caught.
-        # There are two solutions to this problem:
-        # - Query all the data each time (heavy)
-        # - Have the monitor send data to the alertWatcher (via a rabbitmq or kafka server)
-        currentDate = datetime.utcnow()
-
         if 'series' in data.keys():
             # If there is new data available, we print it
             self.__printData(data['series'][0]['values'])
+
+            # The query returns events in ascending time order. 
+            # We take the last timestamp as the next starting point for our check
+            currentDate = data['series'][0]['values'][-1][0]
+        else:
+            # There were no new events, we can keep the previous starting point as the next start date
+            currentDate = startDate
 
         # We schedule the next check
         newCheck = threading.Timer(10, self.__check, args=[currentDate])
