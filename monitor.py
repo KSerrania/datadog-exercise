@@ -42,16 +42,16 @@ class Monitor():
             else:
                 return False, response
         except requests.Timeout as e:
-            print('The request at {} timed out'.format(self.URL))
+            #print('The request at {} timed out'.format(self.URL))
             return False, None
         except requests.ConnectionError as e:
-            print('Error while connecting to {}'.format(self.URL))
+            #print('Error while connecting to {}'.format(self.URL))
             return False, None
         except requests.InvalidURL as e:
-            print('Invalid URL for site {}'.format(self.URL))
+            #print('Invalid URL for site {}'.format(self.URL))
             return False, None
         except Exception as e:
-            print('There was an error while connecting to {}'.format(self.URL))
+            #print('There was an error while connecting to {}'.format(self.URL))
             return False, None
 
 
