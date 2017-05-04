@@ -104,9 +104,9 @@ class Retriever():
 
         Returns:
             A dictionary composed of:
-                - type (string): the type of notification (or None if there is no notification; in that case, the following
+                - type (str): the type of notification (or None if there is no notification; in that case, the following
                   fields do not exist).
-                - URL (string): the website URL.
+                - URL (str): the website URL.
                 - availability (float): the availability of the website at the time of notification.
                 - alertTime (datetime.datetime): the time of notification.
                 - alertNumber (int): the alert number for the website.
