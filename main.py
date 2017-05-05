@@ -96,7 +96,7 @@ class App():
 
         os.system('clear')
 
-        resString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.utcnow()) + ' ####\033[0m'
+        resString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.now()) + ' ####\033[0m'
         for website, retriever in retrievers.items():
             alertStatus = retriever.checkAlert()
             availableStats2m, stats2m = retriever.getStats(2)
