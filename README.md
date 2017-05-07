@@ -36,7 +36,7 @@ Stats about the monitored website are printed to the console every 10 seconds. E
 To start the app in this mode:
 
  ```./monitoringApp.py -m```
- 
+
 You can also provide the name of the configuration file (by default, ```config.json``` is used):
 
 ```./monitoringApp.py -m -c <configFilename>```
@@ -112,25 +112,25 @@ The main database used is ```monitoring```. Two types of measurements are stored
 ```json
 {
 	"tags": {
-		"host": websiteURL,
+		"host"
 	},
 	"fields": {
-		"available": True/False,
-		"status": responseStatus,
-		"responseTime": responseTime
+		"available"
+    "status"
+    "responseTime"
 	}
 ```
 * website_alerts, which stores the alerts and recoveries notifications in the following format:
 ```json
 {
 	"tags": {
-		"host": websiteURL
+		"host"
 	},
     "fields": {
-	    "type": 'alert'/'recovery',
-	    "startDate": startDate,
-        "endDate": endDate (optional),
-        "availability": availability,
+	    "type"
+	    "startDate"
+      "endDate"
+      "availability"
 	}
 }
 ```
@@ -156,7 +156,9 @@ For more details: [see this issue on the docker forums](https://forums.docker.co
 
 * Be able to change / reload the configuration file dynamically,
 
-* Add more interesting monitoring stats (percentiles, duration of the current downtime, time since last failure, ... ?)
+* Add more interesting monitoring stats (percentiles, duration of the current downtime, time since last failure, ... ?),
+
+* Add a way to purge the database in case of need (because of the Docker for Mac issue, for example).
 
 ### About the architecture:
 * Put the database on a separate, independent server. In order to do so, create a HTTP gateway server which acts as an intermediary with the monitors and retrievers.
