@@ -9,7 +9,7 @@ class Retriever():
     Attributes:
         URL (str): URL of the monitored website,
         influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data,
-
+        isOnAlert (bool): Indicates alert status locally.
     """
 
     def __init__(self, URL, influxClient):
@@ -22,6 +22,7 @@ class Retriever():
         """
         self.URL = URL
         self.influxClient = influxClient
+        self.isOnAlert = False
 
     def getStats(self, minutes):
         """Retrieves data about the monitored website from the InfluxDB database.
@@ -108,7 +109,7 @@ class Retriever():
         currentDate = datetime.utcnow()
 
         # Then, get the last notification about the website in order to know its current status
-        query = "SELECT type, startDate FROM website_alerts WHERE host = '{}' ORDER BY time DESC LIMIT 1".format(self.URL)
+        query = "SELECT type, startDate, endDate FROM website_alerts WHERE host = '{}' ORDER BY time DESC LIMIT 1".format(self.URL)
         data = getQueryValues(self.influxClient, query)
 
 
@@ -123,10 +124,16 @@ class Retriever():
                 startDate = data[0][2]
             else:
                 isOnAlert = False
+                startDate = data[0][2]
+                endDate = data[0][3]
 
-        if isOnAlert and availability >= 0.8:
-            # If the website was in alert status but has recovered, we send a recovery signal and store the recovery
-            # in the database
+
+        if isOnAlert and self.isOnAlert and availability >= 0.8:
+            # If the website was in alert status locally and in the database but has recovered,
+            # we send a recovery signal and store the recovery in the database
+            # Change the local alert state to False
+            self.isOnAlert = False
+
             data = [
                 {
                     'measurement': 'website_alerts',
@@ -143,6 +150,8 @@ class Retriever():
                 }
             ]
             self.influxClient.write_points(data)
+
+            # Return data about the recovery
             return {
                 'type': 'recovery',
                 'URL': self.URL,
@@ -150,9 +159,26 @@ class Retriever():
                 'startDate': startDate,
                 'endDate': formatTime(currentDate),
             }
+        elif not(isOnAlert) and self.isOnAlert and availability >= 0.8:
+            # If the website was in alert status locally but has recovered (the recovery signal has already been
+            # sent by another retriever), we send a recovery signal without storing it to the database
+            # Change the local alert state to False
+            self.isOnAlert = False
 
+            # Return data about the recovery
+            return {
+                'type': 'recovery',
+                'URL': self.URL,
+                'availability': availability,
+                'startDate': startDate,
+                'endDate': endDate,
+            }
         elif isOnAlert:
             # If the website was in alert status and still is, send a downtime signal
+            # Change the local alert state to True
+            self.isOnAlert = True
+
+            # Return data about the alert
             return {
                 'type': 'alert',
                 'URL': self.URL,
@@ -162,6 +188,10 @@ class Retriever():
         if not(isOnAlert) and availability < 0.8:
             # If the website is now down, update the alert values and then send a downtime signal
             # Also write the alert notification in the database
+            # Change the local alert state to True
+            self.isOnAlert = True
+
+            # Return data about the alert
             data = [
                 {
                     'measurement': 'website_alerts',
