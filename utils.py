@@ -77,9 +77,78 @@ def formatUptime(uptime):
         return '\n\t\033[1mUptime: \033[91m{:.2%}\033[0m'.format(uptime)
 
 def formatAlert(alertData):
-    if alertData['type'] == 'alert':
-        return "\n\033[91mWebsite {} is down. Uptime: {:.2%}, Start date: {}. (Alert {})\033[0m".format(alertData['URL'], alertData['availability'], formatTime(alertData['startDate']), alertData['alertNumber'])
-    elif alertData['type'] == 'recovery':
-        return "\n\033[92mWebsite {} recovered from alert {}. Uptime: {:.2%}, Start date: {}, End date: {}\033[0m".format(alertData['URL'], alertData['alertNumber'], alertData['availability'], formatTime(alertData['startDate']), formatTime(alertData['endDate']))
+    """Takes notification data and returns a string representing it in a user-friendly format.
+
+    Args:
+        alertData (dict): Data about the notification:
+            type (str): Type of notification (or None if there is no notification; in that case, the following
+            fields do not exist),
+            URL (str): Website URL,
+            availability (float): Availability of the website at the time of notification,
+            startDate (datetime.datetime): Date of alert,
+            endDate (datetime.datetime, optional): Date of recovery (only in case of a recovery),
+
+    Returns:
+        A pretty string representation of the collections.Counter object.
+    """
+
+    try:
+        if alertData['type'] == 'alert':
+            return "\n\033[91mWebsite {} is down. Uptime: {:.2%}\nStart date: {}. \033[0m".format(alertData['URL'], alertData['availability'], alertData['startDate'])
+        elif alertData['type'] == 'recovery':
+            return "\n\033[92mWebsite {} recovered from alert. Uptime: {:.2%}\nStart date: {},\nEnd date: {}\033[0m".format(alertData['URL'], alertData['availability'], alertData['startDate'], alertData['endDate'])
+        else:
+            return ""
+    except KeyError:
+        print(formatError('Wrong alertData structure given to formatAlert', 'critical'))
+        raise
+
+def getQueryValues(influxClient, query):
+    """Takes an influxDB query and returns the corresponding useful data
+    Args:
+        influxClient (InfluxDBClient): Client for the InfluxDB to query,
+        query (str): Query to process.
+
+    Returns:
+        An array of arrays containing the queried data for each timestamp
+    """
+
+    # Query the database and retrieve all the data in a dictionary format
+    try:
+        data = influxClient.query(query).raw
+    except:
+        print(formatError("Error while querying influxDB", 'warning'))
+        data = {}
+
+    # The raw data from the query is a dictionary object.
+    # The interesting data is associated to the series key
+    if 'series' in data.keys():
+        # If there is available data
+        # data['series'] is an array whose only relevant element is the first
+        # This element (data['series'][0]) contains another dictionary
+        # In the 'values' key of this dictionary, there is an array of arrays whose first element is the time
+        # and whose following elements are the elements we requested, in the order they were requested
+        #
+        # Example : [ [<timestamp>, <statusCode>], [<timestamp>, <statusCode>], ...] for the query:
+        # SELECT statusCode FROM website_availability
+        return data['series'][0]['values']
     else:
-        return ""
+        return []
+
+def formatError(error, level):
+    """Takes an error message and colors it to correspond to its level.
+
+    Args:
+        error (str): Error string to be printed,
+        level (str): Level of the error.
+
+    Returns:
+        A pretty string representation of the error.
+    """
+
+    if level == 'critical':
+        return '\033[92;1m{}\033[0m'.format(error)
+    elif level == 'warning':
+        return '\033[91;1m{}\033[0m'.format(error)
+    else:
+        return error
