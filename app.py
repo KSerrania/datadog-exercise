@@ -171,6 +171,9 @@ class App():
             configFile (str): Path to the configuration file
         """
 
+        # Print a waiting message
+        print("Initializing monitoring mode... first stats printing expected in 10 seconds.")
+
         # Load the configuration file
         websites = self.__loadJSONConfig(configFile)
 
