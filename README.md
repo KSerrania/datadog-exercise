@@ -7,18 +7,18 @@ Remote uptime and performance monitoring application.
 To use this application, you need to have python3 and pip3 installed.
 You also need to install the influxDB package for python3:
 
-```pip3 install influxdb```
+`pip3 install influxdb`
 
 To use the test mode, you also need to install flask:
 
-```pip3 install flask```
+`pip3 install flask`
 
 This app uses influxDB as its database. There are two ways to install it:
 
 * Install influxDB directly on your computer with your package manager,
 
 * Install docker and docker-compose on your computer and use the provided docker-compose.yaml file:
-```docker-compose up -d```
+`docker-compose up -d`
 
 
 If you are on MacOS, be aware of issues that may arise from using Docker for Mac with the InfluxDB container (see [Known issues](#known-issues) for details).
@@ -35,11 +35,11 @@ Stats about the monitored website are printed to the console every 10 seconds. E
 
 To start the app in this mode:
 
- ```./monitoringApp.py -m```
+`./monitoringApp.py -m`
 
-You can also provide the name of the configuration file (by default, ```config.json``` is used):
+You can also provide the name of the configuration file (by default, `config.json` is used):
 
-```./monitoringApp.py -m -c <configFilename>```
+`./monitoringApp.py -m -c <configFilename>`
 
 ### Alerts and recoveries notification mode
 
@@ -47,7 +47,7 @@ This mode allows the user to access to the history of alerts and recoveries of t
 
 To start the app in this mode:
 
-```./monitoringApp.py -a```
+`./monitoringApp.py -a`
 
 ### Alerting logic test mode
 
@@ -56,7 +56,7 @@ It does so by creating a flask server which answers GET requests and monitoring 
 
 To start the app in this mode:
 
-```./monitoringApp.py -t```
+`./monitoringApp.py -t`
 
 ## Structure of the app
 
@@ -95,47 +95,47 @@ The main configuration file of the app, which follows the following format:
 }
 ```
 
-The ```"websites"``` key contains an array of objects each representing the individual configuration for a website.
+The `"websites"` key contains an array of objects each representing the individual configuration for a website.
 
-For each website, the ```"URL"``` field must be filled (a website without a ```URL``` key will be ignored).
+For each website, the `"URL"` field must be filled (a website without a `URL` key will be ignored).
 
-The interval between checks ```checkInterval```, in seconds, can be customised for each site. If ```checkInterval``` isn't given, ```defaultCheckInterval``` is used for the site.
+The interval between checks `checkInterval`, in seconds, can be customised for each site. If `checkInterval` isn't given, `defaultCheckInterval` is used for the site.
 
-```defaultCheckInterval``` defaults to 2 seconds if not provided.
+`defaultCheckInterval` defaults to 2 seconds if not provided.
 
 ## Database
 
 InfluxDB is used for this project. The main reason it was chosen is that it operates with time series, which are particularly adapted to monitoring.
 
-The main database used is ```monitoring```. Two types of measurements are stored:
-* website_availability, which stores the data points of the different websites in the following format:
+The main database used is `monitoring`. Two types of measurements are stored:
+* website_availability, which stores the data points of the different websites in a format following this example:
 ```json
 {
 	"tags": {
-		"host"
+		"host": "http://via.ecp.fr"
 	},
 	"fields": {
-		"available"
-    "status"
-    "responseTime"
+		"available": True,
+		"status": 200,
+		"responseTime": 42.18,
 	}
 ```
 * website_alerts, which stores the alerts and recoveries notifications in the following format:
 ```json
 {
 	"tags": {
-		"host"
+		"host": "http://via.ecp.fr"
 	},
-    "fields": {
-	    "type"
-	    "startDate"
-      "endDate"
-      "availability"
+	"fields": {
+		"type": "alert",
+		"startDate": "Sun, 07/05/2017 19:02:51",
+		"endDate": "Sun, 07/05/2017 19:04:51",
+		"availability": 0.789
 	}
 }
 ```
 
-For the test script, a temporary database ```test``` is used to avoid adding unnecessary data to the monitoring series.
+For the test script, a temporary database `test` is used to avoid adding unnecessary data to the monitoring series.
 
 ## Known issues
 
