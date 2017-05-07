@@ -1,11 +1,11 @@
 {
   "websites": [
   {
-    "URL": "http://google.com",
+    "URL": "http://via.ecp.fr",
     "checkInterval": 3.5
   },
   {
-    "URL":"http://localhost:4000"
+    "URL":"http://my.ecp.fr"
   }
   ],
   "defaultCheckInterval": 3

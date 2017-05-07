@@ -4,7 +4,6 @@ services:
 
   influxdb:
     image: influxdb:latest
-    container_name: influxdb
     volumes:
       - ./db:/data/var/opt/influxdb
     ports:
