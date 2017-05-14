@@ -1,16 +1,17 @@
 from datetime import datetime
 
 def formatTime(time):
-    """Takes a datetime.datetime object and returns a string representing it in a user-friendly format
+    """Takes a string representation of a date compatible with the database and returns a string representing it in a better format.
 
     Args:
-        time (datetime.datetime): Datetime object to format
+        time (str): String representation of a date in the format "%d/%m/%Y %H:%M:%S"
 
     Returns:
-        A pretty string representation of the datetime.datetime object
+        A pretty string representation of the date
+
     """
 
-    return time.strftime("%a, %d/%m/%Y %H:%M:%S")
+    return datetime.strptime(time, "%d/%m/%Y %H:%M:%S").strftime("%a, %d/%m/%Y %H:%M:%S")
 
 def printCounter(counter):
     """Takes a collections.Counter object and returns a string representing it in a user-friendly format
