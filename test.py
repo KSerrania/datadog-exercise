@@ -1,12 +1,12 @@
 import time
 import os
 import logging
-from influxdb import InfluxDBClient
 from multiprocessing import Process
 from utils import formatAlert
 from flask import Flask
 from monitor import Monitor
 from retriever import Retriever
+from dbutils import initDatabase, dropTables
 
 # Mock server for testing purposes
 # Only has one route which responds to GET requests
@@ -31,16 +31,13 @@ def testServer():
 
     res = []
 
-    influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'test')
-    influxClient.create_database('test')
+    # Clean up and initialize the test database
+    dropTables("test.db")
+    initDatabase("test.db")
 
     # Create a Monitor and Retriever for the local server
-    monitor = Monitor("http://localhost:7000", influxClient)
-    retriever = Retriever("http://localhost:7000", influxClient)
-
-    # Clean up the test database
-    influxClient.drop_database('test')
-    influxClient.create_database('test')
+    monitor = Monitor("http://localhost:7000", "test.db")
+    retriever = Retriever("http://localhost:7000", "test.db")
 
     # Start the server
     server = Process(target=app.run, kwargs={'port':7000})
