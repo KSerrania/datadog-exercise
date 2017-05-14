@@ -1,29 +1,31 @@
 import os
 import threading
 import json
-from influxdb import InfluxDBClient
 from retriever import Retriever
 from monitor import Monitor
 from datetime import datetime
 from utils import formatTime, formatStats, formatAlert, formatError
+from dbutils import initDatabase
 
 class App():
     """Main class of the application. Handles configuration retrieval, and results printing.
 
     Attributes:
-        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data,
+        dbName (str): Name of the database to use,
         monitors (dict of str:(Monitor, int)): Stores the monitor and check interval for each website,
         retrievers (dict of str:Retriever): Stores the data retriever for each website.
 
     """
 
-    def __init__(self, ):
-        """Initializes the influxDBClient, as well as the monitors and retrievers dictionaries.
+    def __init__(self, dbName="monitoring.db"):
+        """Sets the database file to use and initializes the monitors and retrievers dictionaries.
+
+            Args:
+                dbName (str, optional): Name of the database to use.
 
         """
 
-        self.influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'monitoring')
-        self.influxClient.create_database('monitoring')
+        self.dbName = dbName
         self.monitors = {}
         self.retrievers = {}
 
@@ -50,7 +52,9 @@ class App():
 
         Returns:
             A dictionary (str: int/float) containing websiteURL: checkInterval key-value pairs.
+
         """
+
         res = {}
 
         try:
@@ -108,9 +112,10 @@ class App():
         """Prints the stats aggregates for defined timeframes for each website.
 
         Args:
-            retrievers (dict of Retriever): Retrievers of the website we want to check
-            printInterval (int/float): Interval between two stat prints
-            countdownToNextMinute (int): Number of checks to go before the next printing of hourly stats
+            retrievers (dict of Retriever): Retrievers of the website we want to check,
+            printInterval (int/float): Interval between two stat prints,
+            countdownToNextMinute (int): Number of checks to go before the next printing of hourly stats.
+
         """
 
         if countdownToNextMinute == 0:
@@ -126,7 +131,7 @@ class App():
 
         # Clear the screen and add the global header to the string to print
         os.system('clear')
-        resString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.now()) + ' ####\033[0m'
+        resString = '\n\033[37;1;4m#### Periodic stat check: ' + formatTime(datetime.now().strftime("%d/%m/%Y %H:%M:%S")) + ' ####\033[0m'
 
         for website, retriever in retrievers.items():
             # For each website, get from the retrievers the stats (and whether there are any stats)
@@ -157,7 +162,7 @@ class App():
                 # If there are no stats available, add a notification to the string"
                 resString += '\n\033[93m--- No data available for website ' + retriever.URL + ' ----\033[0m\n'
 
-        # FInally, print the stats for every website
+        # Finally, print the stats for every website
         print(resString)
         return;
 
@@ -168,7 +173,8 @@ class App():
         Prints aggregated data and current errors at constant intervals.
 
         Args:
-            configFile (str): Path to the configuration file
+            configFile (str): Path to the configuration file.
+
         """
 
         # Print a waiting message
@@ -177,10 +183,13 @@ class App():
         # Load the configuration file
         websites = self.__loadJSONConfig(configFile)
 
+        # Initialize the database
+        initDatabase(self.dbName)
+
         # Instanciate a Retriever and a Monitor for each website in the configuration file
         for websiteURL, checkInterval in websites.items():
-            self.monitors[websiteURL] = Monitor(websiteURL, self.influxClient), checkInterval
-            self.retrievers[websiteURL] = Retriever(websiteURL, self.influxClient)
+            self.monitors[websiteURL] = Monitor(websiteURL, self.dbName), checkInterval
+            self.retrievers[websiteURL] = Retriever(websiteURL, self.dbName)
 
         # Start a thread dedicated to printing results
         resultsPrinting = threading.Timer(10, self.__printResults, args=[self.retrievers, 10, 5])
