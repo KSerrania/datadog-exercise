@@ -10,6 +10,7 @@ parser.add_argument('--monitor', '-m', action='store_true', help='start the app 
 parser.add_argument('--alert', '-a', action='store_true', help='start the app in alert / recovery notification mode')
 parser.add_argument('--test', '-t', action='store_true', help='start the app in test mode')
 parser.add_argument('--config', '-c', action='store', help='give the configuration filename (with -m only)')
+parser.add_argument('--database', '-db', action='store', help='give the database filename (with -m only)')
 parser.add_argument
 
 # Parse the args
@@ -18,17 +19,25 @@ args = vars(parser.parse_args())
 if args['monitor']:
     # If the app is run in monitoring mode, initialize it
     app = App()
-    if args['config'] is not None:
-        # If a config file is provided, use it
-        app.run(args['config'])
+
+    # Run the app with the corresponding config
+    if args['database'] and args['config']:
+        app.run(dbName=args['database'], configFile=args['config'])
+    elif args['database']:
+        app.run(dbName=args['database'])
+    elif args['config']:
+        app.run(dbName=args['config'])
     else:
-        # If not, use the default config file (config.json)
         app.run()
+
 elif args['alert']:
-    # If the app is run in  mode, initialize it
+    # If the app is run in alert mode, initialize it
     app = AlertWatcher()
     app.run()
+
 elif args['test']:
+    # If the app is run in test mode, launch the test script
     testServer()
+
 else:
-    print('Missing argument')
+    print('Missing argument: use -m, -a or -t')
