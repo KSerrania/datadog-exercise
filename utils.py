@@ -21,6 +21,7 @@ def printCounter(counter):
 
     Returns:
         A pretty string representation of the collections.Counter object
+
     """
 
     formattedCounts = []
@@ -53,6 +54,7 @@ def formatStats(minutes, stats):
 
     Returns:
         A pretty string representation of the stats.
+
     """
 
     return '\n\033[4;93mFor the past {} minutes:\033[0m'.format(minutes) + \
@@ -68,6 +70,7 @@ def formatUptime(uptime):
 
     Returns:
         A pretty string representation of the collections.Counter object.
+
     """
 
     if uptime >= 0.9:
@@ -114,6 +117,7 @@ def formatError(error, level):
 
     Returns:
         A pretty string representation of the error.
+
     """
 
     if level == 'critical':

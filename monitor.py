@@ -33,6 +33,7 @@ class Monitor():
                 - a boolean (False if the site is not available, True if it is),
                 - a requests.Response object containing data about the requests, or None if the website
                   didn't answer the request.
+
         """
 
         try:
@@ -42,6 +43,7 @@ class Monitor():
                 return True, response
             else:
                 return False, response
+
         # If the website doesn't respond, set that it is not available
         except requests.Timeout as e:
             #print('The request at {} timed out'.format(self.URL))
