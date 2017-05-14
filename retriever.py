@@ -75,7 +75,7 @@ class Retriever():
         except:
             avgRT = float('inf')
 
-        # Define the availability
+        # Compute the availability
         n = sum(availables.values())
         availability = availables[True] / n
 
@@ -103,21 +103,7 @@ class Retriever():
                 - endDate (str, optional): Date of recovery (only in case of a recovery),
         """
 
-        # First retrieve the website's data on the last 2 minutes
-        queryData = {
-            "host": self.URL,
-            "minutes": 2
-        }
-        data = queryValues(self.dbName, 'website_monitoring', queryData)
-
-        availables = Counter([elt[1] for elt in data])
-        n = sum(availables.values())
-
-        # Compute the site's availability
-        availability = availables[True] / n
-        currentDate = datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
-
-        # Then, get the last notification about the website in order to know its current status
+        # First, get the last notification about the website in order to know its current status
         queryData = {
             'host': self.URL,
         }
@@ -136,6 +122,25 @@ class Retriever():
                 isOnAlert = False
                 startDate = data[3]
                 endDate = data[4]
+
+        # Then, retrieve the website's data on the last 2 minutes
+        queryData = {
+            "host": self.URL,
+            "minutes": 2
+        }
+        data = queryValues(self.dbName, 'website_monitoring', queryData)
+
+        availables = Counter([elt[1] for elt in data])
+        n = sum(availables.values())
+        if n == 0:
+            # If there is no data about the website in the past 2 minutes, it is not possible to
+            # assert the site's status, we return that there is no new notification
+            return { 'type': None }
+
+        # Compute the site's availability
+        availability = availables[True] / n
+        currentDate = datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
+
 
         if isOnAlert and self.isOnAlert and availability >= 0.8:
             # If the website was in alert status locally and in the database but has recovered,
