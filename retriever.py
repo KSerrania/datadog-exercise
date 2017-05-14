@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import datetime
-from utils import formatTime, getQueryValues
+from utils import formatTime
+from dbutils import queryValues, queryLastValue, insertValue
 
 class Retriever():
     """Class whose goal is to get a website's monitoring data and compute interesting metrics about it.
@@ -8,24 +9,25 @@ class Retriever():
 
     Attributes:
         URL (str): URL of the monitored website,
-        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data,
+        dbName (str): Name of the database to use,
         isOnAlert (bool): Indicates alert status locally.
     """
 
-    def __init__(self, URL, influxClient):
-        """Sets the URL and influxDBClient as speficied in the parameters.
+    def __init__(self, URL, dbName):
+        """Sets the URL and database name as speficied in the parameters.
 
         Args:
             URL (str): URL of the monitored website,
-            influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+            dbName (str): Name of the database to use.
 
         """
+
         self.URL = URL
-        self.influxClient = influxClient
         self.isOnAlert = False
+        self.dbName = dbName
 
     def getStats(self, minutes):
-        """Retrieves data about the monitored website from the InfluxDB database.
+        """Retrieves data about the monitored website from the database.
         The data retrieved is only the data recorded during the last {minutes} minutes;
 
         Args:
@@ -44,19 +46,22 @@ class Retriever():
         """
 
         # First, query the database
-        query = "SELECT available, status, responseTime FROM website_availability WHERE time > now() - {}m AND host = '{}'".format(minutes, self.URL)
-        data = getQueryValues(self.influxClient, query)
+        queryData = {
+            "host": self.URL,
+            "minutes": minutes
+        }
+        data = queryValues(self.dbName, 'website_monitoring', queryData)
 
         if len(data) > 0:
             # If there is available data
             # Create a counter of number of times the site was available or not
             availables = Counter([elt[1] for elt in data if elt[1] is not None])
 
-            # Create an array containing all the (not None) response times
-            responseTimes = [elt[3] for elt in data if elt[3] is not None]
-
             # Create a counter of status codes
             statusCodes = Counter([elt[2] for elt in data])
+
+            # Create an array containing all the (not None) response times
+            responseTimes = [elt[3] for elt in data if elt[3] is not None]
         else:
             # If there is no data available, return that there is no data available
             return False, {}
@@ -85,7 +90,7 @@ class Retriever():
 
     def checkAlert(self):
         """Checks if an availability alert (or recovery) message should be sent, and also stores the notification data in
-        the influxDB database.
+        the database.
         The check timeframe is 2 minutes.
 
         Returns:
@@ -99,34 +104,38 @@ class Retriever():
         """
 
         # First retrieve the website's data on the last 2 minutes
-        query = "SELECT available FROM website_availability WHERE time > now() - 2m AND host = '{}'".format(self.URL)
-        data = getQueryValues(self.influxClient, query)
+        queryData = {
+            "host": self.URL,
+            "minutes": 2
+        }
+        data = queryValues(self.dbName, 'website_monitoring', queryData)
+
         availables = Counter([elt[1] for elt in data])
         n = sum(availables.values())
 
         # Compute the site's availability
         availability = availables[True] / n
-        currentDate = datetime.utcnow()
+        currentDate = datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
 
         # Then, get the last notification about the website in order to know its current status
-        query = "SELECT type, startDate, endDate FROM website_alerts WHERE host = '{}' ORDER BY time DESC LIMIT 1".format(self.URL)
-        data = getQueryValues(self.influxClient, query)
+        queryData = {
+            'host': self.URL,
+        }
+        data = queryLastValue(self.dbName, 'website_alerts', queryData)
 
-
-        if len(data) == 0:
-            # There is no notification about the website in the database
+        if data is None:
+            # There are no notifications about the website in the database
             isOnAlert = False
         else:
             # There is data about the last notification in data, in the following format:
             # data = [[ <timestamp>, <type>, <availability> ]]
-            if data[0][1] == 'alert':
+            if data[2] == 'alert':
                 isOnAlert = True
-                startDate = data[0][2]
+                startDate = data[3]
             else:
                 isOnAlert = False
-                startDate = data[0][2]
-                endDate = data[0][3]
-
+                startDate = data[3]
+                endDate = data[4]
 
         if isOnAlert and self.isOnAlert and availability >= 0.8:
             # If the website was in alert status locally and in the database but has recovered,
@@ -134,22 +143,16 @@ class Retriever():
             # Change the local alert state to False
             self.isOnAlert = False
 
-            data = [
-                {
-                    'measurement': 'website_alerts',
-                    'tags': {
-                        'host': self.URL
-                    },
-                    'time': currentDate.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    'fields': {
-                        'type': 'recovery',
-                        'startDate': startDate,
-                        'endDate': formatTime(currentDate),
-                        'availability': availability,
-                    }
-                }
-            ]
-            self.influxClient.write_points(data)
+            # Add recovery data to the database
+            queryData = {
+                'host': self.URL,
+                'timestamp': currentDate,
+                'type': 'recovery',
+                'startDate': startDate,
+                'endDate': currentDate,
+                'availability': availability,
+            }
+            insertValue(self.dbName, 'website_alerts', queryData)
 
             # Return data about the recovery
             return {
@@ -157,9 +160,10 @@ class Retriever():
                 'URL': self.URL,
                 'availability': availability,
                 'startDate': startDate,
-                'endDate': formatTime(currentDate),
+                'endDate': currentDate
             }
-        elif not(isOnAlert) and self.isOnAlert and availability >= 0.8:
+
+        if not(isOnAlert) and self.isOnAlert and availability >= 0.8:
             # If the website was in alert status locally but has recovered (the recovery signal has already been
             # sent by another retriever), we send a recovery signal without storing it to the database
             # Change the local alert state to False
@@ -171,9 +175,10 @@ class Retriever():
                 'URL': self.URL,
                 'availability': availability,
                 'startDate': startDate,
-                'endDate': endDate,
+                'endDate': endDate
             }
-        elif isOnAlert:
+
+        if isOnAlert:
             # If the website was in alert status and still is, send a downtime signal
             # Change the local alert state to True
             self.isOnAlert = True
@@ -183,36 +188,31 @@ class Retriever():
                 'type': 'alert',
                 'URL': self.URL,
                 'availability': availability,
-                'startDate': startDate,
+                'startDate': startDate
             }
+
         if not(isOnAlert) and availability < 0.8:
             # If the website is now down, update the alert values and then send a downtime signal
             # Also write the alert notification in the database
             # Change the local alert state to True
             self.isOnAlert = True
 
-            # Return data about the alert
-            data = [
-                {
-                    'measurement': 'website_alerts',
-                    'tags': {
-                        'host': self.URL
-                    },
-                    'time': currentDate.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    'fields': {
-                        'type': 'alert',
-                        'startDate': formatTime(currentDate),
-                        'availability': availability,
-                    }
-                }
-            ]
-            self.influxClient.write_points(data)
+            # Add data about the alert in the database
+            queryData = {
+                'host': self.URL,
+                'timestamp': currentDate,
+                'type': 'alert',
+                'startDate': currentDate,
+                'endDate': None,
+                'availability': availability,
+            }
+            insertValue(self.dbName, 'website_alerts', queryData)
 
             return {
                 'type': 'alert',
                 'URL': self.URL,
                 'availability': availability,
-                'startDate': formatTime(currentDate),
+                'startDate': currentDate,
             }
 
         # If there's no problem, only send that type is None
