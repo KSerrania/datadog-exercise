@@ -5,23 +5,12 @@ Remote uptime and performance monitoring application.
 ## Installation
 
 To use this application, you need to have python3 and pip3 installed.
-You also need to install the influxDB package for python3:
 
-`pip3 install influxdb`
-
-To use the test mode, you also need to install flask:
+To use the test mode, you need to install flask:
 
 `pip3 install flask`
 
-This app uses influxDB as its database. There are two ways to install it:
-
-* Install influxDB directly on your computer with your package manager,
-
-* Install docker and docker-compose on your computer and use the provided docker-compose.yaml file:
-`docker-compose up -d`
-
-
-If you are on MacOS, be aware of issues that may arise from using Docker for Mac with the InfluxDB container (see [Known issues](#known-issues) for details).
+This app uses sqlite as its database.
 
 ## Utilisation
 
@@ -40,6 +29,10 @@ To start the app in this mode:
 You can also provide the name of the configuration file (by default, `config.json` is used):
 
 `./monitoringApp.py -m -c <configFilename>`
+
+And you can provide a name for the database file (by default, `monitoring.db`is used):
+
+`./monitoringApp.py -m -db <databaseFileName>`
 
 ### Alerts and recoveries notification mode
 
@@ -74,7 +67,11 @@ Contains the test script for the alerting logic.
 
 ### utils.py
 
-Contains utility functions to query the database or format the printed data.
+Contains utility functions to format the printed data.
+
+### dbutils.py
+
+Contains utility functions to communicate with the sqlite database.
 
 ### config.json
 
@@ -85,7 +82,7 @@ The main configuration file of the app, which follows the following format:
   "websites": [
     {
       "URL": "http://via.ecp.fr",
-	    "checkInterval": 3.5
+      "checkInterval": 3.5
     },
     {
       "URL":"http://my.ecp.fr"
@@ -105,47 +102,14 @@ The interval between checks `checkInterval`, in seconds, can be customised for e
 
 ## Database
 
-InfluxDB is used for this project. The main reason it was chosen is that it operates with time series, which are particularly adapted to monitoring.
+sqlite is used for this project, as it is a lightweight database which needs no additional python modules (which is perfect for a small project like this one).
+Two tables are used:
+* website_monitoring, which stores the data points of the different websites. This table's attributes are:
+`(<timestamp (str)>, <host (str)>, <available (int)>, <status (int)>, <responseTime (real)>)`
+* website_alerts, which stores the alerts and recoveries notifications. This table's attributes are:
+`(<timestamp (str)>, <host (str)>, <type (str)>, <startDate (str)>, <endDate (str)>, <availability (real)>)`
 
-The main database used is `monitoring`. Two types of measurements are stored:
-* website_availability, which stores the data points of the different websites in a format following this example:
-```json
-{
-	"tags": {
-		"host": "http://via.ecp.fr"
-	},
-	"fields": {
-		"available": True,
-		"status": 200,
-		"responseTime": 42.18,
-	}
-```
-* website_alerts, which stores the alerts and recoveries notifications in the following format:
-```json
-{
-	"tags": {
-		"host": "http://via.ecp.fr"
-	},
-	"fields": {
-		"type": "alert",
-		"startDate": "Sun, 07/05/2017 19:02:51",
-		"endDate": "Sun, 07/05/2017 19:04:51",
-		"availability": 0.789
-	}
-}
-```
-
-For the test script, a temporary database `test` is used to avoid adding unnecessary data to the monitoring series.
-
-## Known issues
-
-On MacOS, because of the way Docker for Mac operates with containers, the influxDB container time may not be synchronised with the host's UTC time.
-
-This issue arises when the Mac is put to sleep while the container is up. During the Mac's sleep, the container's clock is frozen, meaning that the container becomes out of sync with the host, causing the monitoring system to not aggregate correct data.
-
-The only known way of fixing this issue is to restart the docker daemon.
-
-For more details: [see this issue on the docker forums](https://forums.docker.com/t/time-in-container-is-out-of-sync/16566).
+For the test script, a temporary database `test.db` is used to avoid adding unnecessary data to the monitoring database.
 
 ## Means of improvement
 
@@ -158,9 +122,10 @@ For more details: [see this issue on the docker forums](https://forums.docker.co
 
 * Add more interesting monitoring stats (percentiles, duration of the current downtime, time since last failure, ... ?),
 
-* Add a way to purge the database in case of need (because of the Docker for Mac issue, for example).
+* Add a way to purge the database in case of need,
+
+* Verify user input.
 
 ### About the architecture:
-* Put the database on a separate, independent server. In order to do so, create a HTTP gateway server which acts as an intermediary with the monitors and retrievers.
 
 * Create a Dockerfile for the python part, so that the user doesn't have to install the python packages.
