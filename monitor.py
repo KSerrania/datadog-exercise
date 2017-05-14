@@ -1,4 +1,5 @@
 import requests
+from dbutils import insertValue
 from datetime import timedelta, datetime
 
 class Monitor():
@@ -6,20 +7,21 @@ class Monitor():
 
     Attributes:
         URL (str): URL of the monitored website,
-        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+        dbName (str): Name of the database to use.
 
     """
 
-    def __init__(self, URL, influxClient):
-        """Sets the URL and influxDBClient as speficied in the parameters.
+    def __init__(self, URL, dbName="monitoring.db"):
+        """Sets the URL and database name as speficied in the parameters.
 
         Args:
             URL (str): URL of the monitored website,
-            influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+            dbName (str): Name of the database to use.
 
         """
+
         self.URL = URL
-        self.influxClient = influxClient
+        self.dbName = dbName
 
     def __availabilityCheck(self):
         """Checks if the monitored website is available by sending it a GET request.
@@ -56,12 +58,12 @@ class Monitor():
 
 
     def get(self):
-        """Gets data about the monitored website and stores it into the InfluxDB database.
+        """Gets data about the monitored website and stores it into the database.
 
         """
 
         # Get the current date to use it as a timestamp
-        currentDate = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        currentDate = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
         # Query the website
         available, response = self.__availabilityCheck()
@@ -76,18 +78,11 @@ class Monitor():
             status = None
 
         # Format data and write it to the database
-        data = [
-            {
-                "measurement": "website_availability",
-                "tags": {
-                    "host": self.URL
-                },
-                "time": currentDate,
-                "fields": {
-                    "available": available,
-                    "status": status,
-                    "responseTime": responseTime
-                }
-            }
-        ]
-        self.influxClient.write_points(data)
+        insertData = {
+            "timestamp": currentDate,
+            "host": self.URL,
+            "available": available,
+            "status": status,
+            "responseTime": responseTime
+        }
+        insertValue(self.dbName, 'website_monitoring', insertData)
