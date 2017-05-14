@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from datetime import datetime
-from influxdb import InfluxDBClient
-from utils import formatTime, formatAlert, getQueryValues, formatError
+from utils import formatTime, formatAlert, formatError
+from dbutils import queryValues, initDatabase
 import threading
 
 
@@ -10,18 +10,19 @@ class AlertWatcher():
     It checks periodically the monitoring database to see if there are new alerts or recoveries.
 
     Attributes:
-        influxClient (InfluxDBClient): Client for the InfluxDB used to store monitoring data.
+        dbName (str): Name of the database to use.
 
     """
 
-    def __init__(self):
-        """Sets the influxDBClient as speficied in the parameters.
+    def __init__(self, dbName="monitoring.db"):
+        """Sets the database name as speficied in the parameters.
+
+        Args:
+            dbName (str, optional): Name of the database to use.
 
         """
 
-        # Set the influxClient
-        self.influxClient = InfluxDBClient('localhost', 8086, 'root', 'root', 'monitoring')
-        self.influxClient.create_database('monitoring')
+        self.dbName = dbName
 
     def __printData(self, data):
         """Takes the relevant data from the database queries and prints notification lines
@@ -30,10 +31,11 @@ class AlertWatcher():
             data (array): Array of arrays each containing one event data.
 
         An element of data should always have the following format:
-        [<timestamp>, <websiteURL>, <type>, <startDate>, <endDate>, <availability>]
-        since this is the format imposed by the influxDB query we made.
+        (<timestamp>, <websiteURL>, <type>, <startDate>, <endDate>, <availability>)
+        since this is the format imposed by the sql query we made.
         If it doesn't, that means that the database was modified or that
         the query (or its result) was tampered with.
+
         """
 
         for elt in data:
@@ -52,7 +54,7 @@ class AlertWatcher():
                 raise
 
     def __check(self, startDate=None):
-        """Checks if there are any new notifications to take into account and prints them
+        """Checks if there are any new notifications to take into account and prints them.
 
         Args:
             startDate (str, optional): Limits the search to notifications after this date.
@@ -61,13 +63,13 @@ class AlertWatcher():
 
         if startDate is not None:
             # If a startDate was given (typically, after the first check), only query about notifications after this date.
-            # The data needs to be in the following format, as absolute dates in InfluxDB queries must follow RFC3339_like_date_time
-            # or RFC3339_date_time
-            query = "SELECT host, type, startDate, endDate, availability FROM website_alerts WHERE time > '{}'".format(startDate)
+            queryData = {
+                "startDate": startDate
+            }
         else:
             # Query the database about all the notifications
-            query = "SELECT host, type, startDate, endDate, availability FROM website_alerts"
-        data = getQueryValues(self.influxClient, query)
+            queryData = {}
+        data = queryValues(self.dbName, 'website_alerts', queryData)
 
         if len(data) > 0:
             # If there is new data available, print it
@@ -89,5 +91,7 @@ class AlertWatcher():
         """Launches the first check which retrieves all notification history.
 
         """
+
+        initDatabase(self.dbName)
         self.__check()
 
