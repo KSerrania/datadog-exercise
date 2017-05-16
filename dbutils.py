@@ -46,6 +46,7 @@ def initDatabase(dbName):
 
     # Save the changes to the database
     connection.commit()
+    connection.close()
 
 def dropTables(dbName):
     """Drop the database tables website_alerts and website_monitoring.
@@ -66,6 +67,7 @@ def dropTables(dbName):
 
     # Save the changes to the database
     connection.commit()
+    connection.close()
 
 def insertValue(dbName, table, data):
     """Insert given value set into a given table.
@@ -114,6 +116,7 @@ def insertValue(dbName, table, data):
 
         # Save the changes to the database
         connection.commit()
+    connection.close()
 
 def queryLastValue(dbName, table, queryData):
     """Get the most recent value in a table for a host.
@@ -147,7 +150,9 @@ def queryLastValue(dbName, table, queryData):
                 ORDER BY timestamp DESC LIMIT 1', fields)
 
         # Returns the gathered data (which is only one row)
-        return cursor.fetchone()
+        result = cursor.fetchone()
+        connection.close()
+        return result
 
     if table == 'website_monitoring':
         # If the query concerns the website_monitoring table
@@ -160,7 +165,9 @@ def queryLastValue(dbName, table, queryData):
                 ORDER BY timestamp DESC LIMIT 1", fields)
 
         # Returns the gathered data (which is only one row)
-        return cursor.fetchone()
+        result = cursor.fetchone()
+        connection.close()
+        return result
 
 def queryValues(dbName, table, queryData):
     """Get the values in a table.
@@ -213,7 +220,9 @@ def queryValues(dbName, table, queryData):
                 ORDER BY timestamp ASC")
 
         # Return all results in an array
-        return cursor.fetchall()
+        result = cursor.fetchall()
+        connection.close()
+        return result
 
     if table == 'website_monitoring':
         # If the query concerns the website_alerts table
@@ -227,4 +236,7 @@ def queryValues(dbName, table, queryData):
                 ORDER BY timestamp ASC".format(minutes), fields)
 
         # Return all results in an array
-        return cursor.fetchall()
+        result = cursor.fetchall()
+        connection.close()
+        return result
+
