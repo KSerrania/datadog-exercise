@@ -30,7 +30,7 @@ You can also provide the name of the configuration file (by default, `config.jso
 
 `./monitoringApp.py -m -c <configFilename>`
 
-And you can provide a name for the database file (by default, `monitoring.db`is used):
+And you can provide a name for the database file (by default, `monitoring.db` is used):
 
 `./monitoringApp.py -m -db <databaseFileName>`
 
